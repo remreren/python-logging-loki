@@ -5,6 +5,7 @@ import copy
 import functools
 import logging
 import time
+
 from logging.config import ConvertingDict
 from typing import Any
 from typing import Dict
@@ -30,7 +31,7 @@ class LokiEmitter(abc.ABC):
     label_replace_with = const.label_replace_with
     session_class = requests.Session
 
-    def __init__(self, url: str, tags: Optional[dict] = None, auth: BasicAuth = None):
+    def __init__(self, url: str, tags: Optional[dict] = None, auth: BasicAuth = None, headers: Optional[dict] = None):
         """
         Create new Loki emitter.
 
@@ -38,7 +39,7 @@ class LokiEmitter(abc.ABC):
             url: Endpoint used to send log entries to Loki (e.g. `https://my-loki-instance/loki/api/v1/push`).
             tags: Default tags added to every log record.
             auth: Optional tuple with username and password for basic HTTP authentication.
-
+            headers: Optional dict with HTTP headers to send.
         """
         #: Tags that will be added to all records handled by this handler.
         self.tags = tags or {}
@@ -46,13 +47,15 @@ class LokiEmitter(abc.ABC):
         self.url = url
         #: Optional tuple with username and password for basic authentication.
         self.auth = auth
+        #: Optional headers for post request
+        self.headers = headers or {}
 
         self._session: Optional[requests.Session] = None
 
     def __call__(self, record: logging.LogRecord, line: str):
         """Send log record to Loki."""
         payload = self.build_payload(record, line)
-        resp = self.session.post(self.url, json=payload)
+        resp = self.session.post(self.url, json=payload, headers=self.headers)
         if resp.status_code != self.success_response_code:
             raise ValueError("Unexpected Loki API response status code: {0}".format(resp.status_code))
 
@@ -113,7 +116,7 @@ class LokiEmitterV0(LokiEmitter):
         labels = self.build_labels(record)
         ts = rfc3339.format_microsecond(record.created)
         stream = {
-            "labels": labels,
+            "labels" : labels,
             "entries": [{"ts": ts, "line": line}],
         }
         return {"streams": [stream]}
@@ -141,3 +144,20 @@ class LokiEmitterV1(LokiEmitter):
             "values": [[ts, line]],
         }
         return {"streams": [stream]}
+
+
+class LokiEmitterV2(LokiEmitterV1):
+    """
+    Emitter for Loki >= 0.4.0.
+    Enables passing additional headers to requests
+    """
+
+    def __init__(self, url: str, tags: Optional[dict] = None, auth: BasicAuth = None, headers: dict = None):
+        super().__init__(url, tags, auth, headers)
+
+    def __call__(self, record: logging.LogRecord, line: str):
+        """Send log record to Loki."""
+        payload = self.build_payload(record, line)
+        resp = self.session.post(self.url, json=payload, headers=self.headers)
+        if resp.status_code != self.success_response_code:
+            raise ValueError("Unexpected Loki API response status code: {0}".format(resp.status_code))
