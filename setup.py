@@ -6,15 +6,15 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="python-logging-loki",
-    version="0.3.1",
-    description="Python logging handler for Grafana Loki.",
+    name="python-logging-loki-v2",
+    version="0.4.3",
+    description="Python logging handler for Grafana Loki, with support to headers.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="MIT",
-    author="Andrey Maslov",
-    author_email="greyzmeem@gmail.com",
-    url="https://github.com/greyzmeem/python-logging-loki",
+    author="Roman Rapoport",
+    author_email="cryos10@gmail.com",
+    url="https://github.com/RomanR-dev/python-logging-loki",
     packages=setuptools.find_packages(exclude=("tests",)),
     python_requires=">=3.6",
     install_requires=["rfc3339>=6.1", "requests"],
