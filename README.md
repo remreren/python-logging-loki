@@ -1,4 +1,6 @@
-python-logging-loki-v2 [Based on: https://github.com/GreyZmeem/python-logging-loki.]
+## python-logging-loki-v2
+
+# [Based on: https://github.com/GreyZmeem/python-logging-loki.]
 ===================
 
 [![PyPI version](https://img.shields.io/pypi/v/python-logging-loki-v2.svg)](https://pypi.org/project/python-logging-loki-v2/)
@@ -33,7 +35,7 @@ handler = logging_loki.LokiHandler(
     url="https://my-loki-instance/loki/api/v1/push", 
     tags={"application": "my-app"},
     auth=("username", "password"),
-    version="1",
+    version="2",
 )
 
 logger = logging.getLogger("my-logger")
@@ -65,7 +67,7 @@ handler_loki = logging_loki.LokiHandler(
     url="https://my-loki-instance/loki/api/v1/push", 
     tags={"application": "my-app"},
     auth=("username", "password"),
-    version="1",
+    version="2",
 )
 logging.handlers.QueueListener(queue, handler_loki)
 
@@ -87,7 +89,7 @@ handler = logging_loki.LokiQueueHandler(
     url="https://my-loki-instance/loki/api/v1/push", 
     tags={"application": "my-app"},
     auth=("username", "password"),
-    version="1",
+    version="2",
 )
 
 logger = logging.getLogger("my-logger")

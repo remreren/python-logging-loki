@@ -107,3 +107,11 @@ def test_no_headers_added(emitter_v2_no_headers):
 
     kwargs = get_request(session)
     assert kwargs['headers'] is not None and kwargs['headers'] == {}
+
+
+def test_soemthing_fun():
+    import os
+    a = "a"
+    b = "b"
+    c = "/c"
+    print(os.path.join(a, b, c))
