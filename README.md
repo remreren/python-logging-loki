@@ -18,7 +18,7 @@ New
 Installation
 ============
 ```bash
-pip install python-logging-loki
+pip install python-logging-loki-v2
 ```
 
 Usage
