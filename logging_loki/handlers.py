@@ -32,7 +32,6 @@ class LokiHandler(logging.Handler):
     """
 
     emitters: Dict[str, Type[emitter.LokiEmitter]] = {
-        "0": emitter.LokiEmitterV0,
         "1": emitter.LokiEmitterV1,
         "2": emitter.LokiEmitterV2
     }
@@ -43,7 +42,8 @@ class LokiHandler(logging.Handler):
         tags: Optional[dict] = None,
         auth: Optional[emitter.BasicAuth] = None,
         version: Optional[str] = None,
-        headers: Optional[dict] = None
+        headers: Optional[dict] = None,
+        metadata_keys: list = [],
     ):
         """
         Create new Loki logging handler.
@@ -57,19 +57,10 @@ class LokiHandler(logging.Handler):
         """
         super().__init__()
 
-        if version is None and const.emitter_ver == "0":
-            msg = (
-                "Loki /api/prom/push endpoint is in the depreciation process starting from version 0.4.0.",
-                "Explicitly set the emitter version to '0' if you want to use the old endpoint.",
-                "Or specify '1' if you have Loki version> = 0.4.0.",
-                "When the old API is removed from Loki, the handler will use the new version by default.",
-            )
-            warnings.warn(" ".join(msg), DeprecationWarning)
-
         version = version or const.emitter_ver
         if version not in self.emitters:
             raise ValueError("Unknown emitter version: {0}".format(version))
-        self.emitter = self.emitters[version](url, tags, auth, headers)
+        self.emitter = self.emitters[version](url, tags, auth, headers, metadata_keys=metadata_keys)
 
     def handleError(self, record):  # noqa: N802
         """Close emitter and let default handler take actions on error."""

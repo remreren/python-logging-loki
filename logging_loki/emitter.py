@@ -31,7 +31,7 @@ class LokiEmitter(abc.ABC):
     label_replace_with = const.label_replace_with
     session_class = requests.Session
 
-    def __init__(self, url: str, tags: Optional[dict] = None, auth: BasicAuth = None, headers: Optional[dict] = None):
+    def __init__(self, url: str, tags: Optional[dict] = None, auth: BasicAuth = None, headers: Optional[dict] = None, metadata_keys: list = []):
         """
         Create new Loki emitter.
 
@@ -49,18 +49,18 @@ class LokiEmitter(abc.ABC):
         self.auth = auth
         #: Optional headers for post request
         self.headers = headers or {}
-
+        self.metadata_keys = metadata_keys
         self._session: Optional[requests.Session] = None
 
     def __call__(self, record: logging.LogRecord, line: str):
         """Send log record to Loki."""
-        payload = self.build_payload(record, line)
+        payload = self.build_payload(record, line, metadata_keys=self.metadata_keys)
         resp = self.session.post(self.url, json=payload, headers=self.headers)
         if resp.status_code != self.success_response_code:
             raise ValueError("Unexpected Loki API response status code: {0}".format(resp.status_code))
 
     @abc.abstractmethod
-    def build_payload(self, record: logging.LogRecord, line) -> dict:
+    def build_payload(self, record: logging.LogRecord, line, metadata_keys: list = []) -> dict:
         """Build JSON payload with a log entry."""
         raise NotImplementedError  # pragma: no cover
 
@@ -107,41 +107,17 @@ class LokiEmitter(abc.ABC):
 
         return tags
 
-
-class LokiEmitterV0(LokiEmitter):
-    """Emitter for Loki < 0.4.0."""
-
-    def build_payload(self, record: logging.LogRecord, line) -> dict:
-        """Build JSON payload with a log entry."""
-        labels = self.build_labels(record)
-        ts = rfc3339.format_microsecond(record.created)
-        stream = {
-            "labels" : labels,
-            "entries": [{"ts": ts, "line": line}],
-        }
-        return {"streams": [stream]}
-
-    def build_labels(self, record: logging.LogRecord) -> str:
-        """Return Loki labels string."""
-        labels: List[str] = []
-        for label_name, label_value in self.build_tags(record).items():
-            cleared_name = self.format_label(str(label_name))
-            cleared_value = str(label_value).replace('"', r"\"")
-            labels.append('{0}="{1}"'.format(cleared_name, cleared_value))
-        return "{{{0}}}".format(",".join(labels))
-
-
 class LokiEmitterV1(LokiEmitter):
     """Emitter for Loki >= 0.4.0."""
 
-    def build_payload(self, record: logging.LogRecord, line) -> dict:
+    def build_payload(self, record: logging.LogRecord, line, metadata_keys: list = []) -> dict:
         """Build JSON payload with a log entry."""
         labels = self.build_tags(record)
         ns = 1e9
         ts = str(int(time.time() * ns))
         stream = {
             "stream": labels,
-            "values": [[ts, line]],
+            "values": [[ts, line, {k: str(getattr(record, k)) for k in metadata_keys}]],
         }
         return {"streams": [stream]}
 
@@ -152,12 +128,12 @@ class LokiEmitterV2(LokiEmitterV1):
     Enables passing additional headers to requests
     """
 
-    def __init__(self, url: str, tags: Optional[dict] = None, auth: BasicAuth = None, headers: dict = None):
-        super().__init__(url, tags, auth, headers)
+    def __init__(self, url: str, tags: Optional[dict] = None, auth: BasicAuth = None, headers: dict = None, metadata_keys: list = []):
+        super().__init__(url, tags, auth, headers, metadata_keys)
 
     def __call__(self, record: logging.LogRecord, line: str):
         """Send log record to Loki."""
-        payload = self.build_payload(record, line)
+        payload = self.build_payload(record, line, metadata_keys=self.metadata_keys)
         resp = self.session.post(self.url, json=payload, headers=self.headers)
         if resp.status_code != self.success_response_code:
             raise ValueError("Unexpected Loki API response status code: {0}".format(resp.status_code))
