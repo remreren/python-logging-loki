@@ -115,9 +115,10 @@ class LokiEmitterV1(LokiEmitter):
         labels = self.build_tags(record)
         ns = 1e9
         ts = str(int(time.time() * ns))
+        metadata = {k: str(getattr(record, k)) for k in metadata_keys if getattr(record, k) is not None}
         stream = {
             "stream": labels,
-            "values": [[ts, line, {k: str(getattr(record, k)) for k in metadata_keys}]],
+            "values": [[ts, line, metadata]],
         }
         return {"streams": [stream]}
 
