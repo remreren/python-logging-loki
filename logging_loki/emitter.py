@@ -7,6 +7,7 @@ import logging
 import time
 
 from logging.config import ConvertingDict
+from collections.abc import Mapping
 from typing import Any
 from typing import Dict
 from typing import List
@@ -107,6 +108,39 @@ class LokiEmitter(abc.ABC):
 
         return tags
 
+    def build_metadata(self, record: logging.LogRecord, metadata_keys: List[str]) -> Dict[str, str]:
+        """Return metadata built from configured keys and thread context."""
+
+        metadata: Dict[str, str] = {}
+
+        def add_entry(key: Any, value: Any, overwrite: bool = True):
+            if key is None or value is None:
+                return
+            key_str = str(key)
+            if not overwrite and key_str in metadata:
+                return
+            metadata[key_str] = str(value)
+
+        if metadata_keys is None:
+            metadata_keys = []
+
+        for key in metadata_keys:
+            value = getattr(record, key, None)
+            if value is None:
+                continue
+            if isinstance(value, Mapping):
+                for nested_key, nested_value in value.items():
+                    add_entry(nested_key, nested_value)
+            else:
+                add_entry(key, value)
+
+        thread_context = getattr(record, "thread_context", None)
+        if isinstance(thread_context, Mapping):
+            for context_key, context_value in thread_context.items():
+                add_entry(context_key, context_value, overwrite=False)
+
+        return metadata
+
 class LokiEmitterV1(LokiEmitter):
     """Emitter for Loki >= 0.4.0."""
 
@@ -115,7 +149,7 @@ class LokiEmitterV1(LokiEmitter):
         labels = self.build_tags(record)
         ns = 1e9
         ts = str(int(time.time() * ns))
-        metadata = {k: str(getattr(record, k)) for k in metadata_keys if getattr(record, k) is not None}
+        metadata = self.build_metadata(record, metadata_keys)
         stream = {
             "stream": labels,
             "values": [[ts, line, metadata]],

@@ -147,6 +147,34 @@ def test_timestamp_added_to_values(emitter_v1):
     assert stream["values"][0][0] == str(expected)
 
 
+def test_thread_context_metadata_added(emitter_v1):
+    emitter, session = emitter_v1
+    record = create_record(extra={"thread_context": {"request_id": "abc", "user_id": 42}})
+    emitter(record, "")
+
+    stream = get_stream(session)
+    metadata = stream["values"][0][2]
+    assert metadata["request_id"] == "abc"
+    assert metadata["user_id"] == "42"
+
+
+def test_thread_context_does_not_override_explicit_metadata(emitter_v1):
+    emitter, session = emitter_v1
+    emitter.metadata_keys = ["request_id"]
+    record = create_record(
+        extra={
+            "request_id": "explicit",
+            "thread_context": {"request_id": "from_context", "locale": "en-US"},
+        }
+    )
+    emitter(record, "")
+
+    stream = get_stream(session)
+    metadata = stream["values"][0][2]
+    assert metadata["request_id"] == "explicit"
+    assert metadata["locale"] == "en-US"
+
+
 def test_session_is_closed(emitter_v1):
     emitter, session = emitter_v1
     emitter(create_record(), "")
